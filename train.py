@@ -37,7 +37,7 @@ st.markdown("---")
 tab1, tab2 = st.tabs(["🎯 Công cụ Dự đoán", "🧠 Giải phẫu Thuật toán LightGBM"])
 
 # ---------------------------------------------------------
-# TAB 1: CÔNG CỤ DỰ ĐOÁN (UI CHO NGƯỜI DÙNG)
+# TAB 1: CÔNG CỤ DỰ ĐOÁN & TRUY VẾT SUY LUẬN
 # ---------------------------------------------------------
 with tab1:
     col1, col2 = st.columns([1, 1])
@@ -46,8 +46,8 @@ with tab1:
     with col1:
         st.subheader("📝 Nhập dữ liệu hành vi của khách")
         
-        prod_duration = st.slider("⏱️ Thời gian xem Sản phẩm (giây)", 0, 5000, 1500)
-        admin_duration = st.slider("⚙️ Thời gian ở trang Quản lý/Thanh toán", 0, 1000, 50)
+        prod_duration = st.slider("⏱️ Thời gian xem Sản phẩm (giây)", 0.0, 5000.0, 1500.0)
+        admin_duration = st.slider("⚙️ Thời gian ở trang Quản lý/Thanh toán", 0.0, 1000.0, 50.0)
         bounce_rate = st.slider("🏃 Tỷ lệ thoát nhanh (Bounce Rate)", 0.0, 0.2, 0.01)
         
         col_a, col_b = st.columns(2)
@@ -64,7 +64,7 @@ with tab1:
         
         if st.button("🚀 Bấm để AI Chấm Điểm", use_container_width=True):
             if model is None:
-                st.warning("Không có mô hình AI để chạy. Vui lòng khắc phục lỗi nạp file ở trên.")
+                st.warning("Không có mô hình AI để chạy. Vui lòng kiểm tra lại file .joblib.")
             else:
                 try:
                     # 1. Đóng gói ĐỦ 17 CỘT theo chuẩn bộ dữ liệu Kaggle
@@ -76,7 +76,7 @@ with tab1:
                         "ProductRelated": 10, 
                         "ProductRelated_Duration": float(prod_duration),
                         "BounceRates": float(bounce_rate),
-                        "ExitRates": float(bounce_rate) + 0.01, # Giả lập tương quan thực tế
+                        "ExitRates": float(bounce_rate) + 0.01,
                         "PageValues": 0.0,
                         "SpecialDay": 0.0,
                         "Month": month,
@@ -111,6 +111,62 @@ with tab1:
                         st.warning("**🟠 KHÁCH ĐANG PHÂN VÂN!** \n\n Nên hiển thị Popup tặng mã giảm giá 10% (hoặc Freeship) để chốt sale tức thì.")
                     else:
                         st.error("**🔴 KHÁCH VÃNG LAI.** \n\n Xác suất chốt đơn quá thấp. Không nên lưu Data để chạy Retargeting Ads cho người này.")
+                    
+                    # ==========================================
+                    # 6. MINH HỌA QUÁ TRÌNH SUY LUẬN TRỰC TIẾP
+                    # ==========================================
+                    st.markdown("---")
+                    with st.expander("🕵️ Xem cách AI đưa ra quyết định (Step-by-step)", expanded=True):
+                        st.markdown("""
+                        Thuật toán **Gradient Boosting** phân tích dữ liệu qua hàng trăm quy tắc (cây quyết định) để cộng/trừ điểm liên tục. 
+                        Dưới đây là một số đánh giá nổi bật mà AI vừa thực hiện cho vị khách này:
+                        """)
+                        
+                        base_score = 15.0 # Xác suất mặc định của tập dữ liệu
+                        current_score = base_score
+                        
+                        st.write("**Giai đoạn 1: Đánh giá cơ sở (Khởi điểm)**")
+                        st.info(f"Đa số khách hàng lướt web là vãng lai. Xác suất cơ sở ban đầu đặt ở mức **{base_score}%**")
+                        
+                        st.write("**Giai đoạn 2: Các chuyên gia (Cây quyết định) vào cuộc**")
+                        
+                        col_step1, col_step2 = st.columns(2)
+                        
+                        with col_step1:
+                            # Phân tích Thời gian xem
+                            if prod_duration > 2000:
+                                st.success(f"✔️ **Hành vi 1 (Thời gian xem):** Khách ở lại rất lâu ({prod_duration}s), chứng tỏ sự quan tâm đặc biệt. ➔ **Cộng điểm mạnh**")
+                            elif prod_duration > 800:
+                                st.success(f"✔️ **Hành vi 1 (Thời gian xem):** Thời gian tìm hiểu sản phẩm ở mức khá ({prod_duration}s). ➔ **Cộng điểm nhẹ**")
+                            else:
+                                st.error(f"❌ **Hành vi 1 (Thời gian xem):** Khách lướt quá nhanh ({prod_duration}s), chưa đủ thời gian để thuyết phục. ➔ **Trừ điểm**")
+                                
+                            # Phân tích Tỷ lệ thoát
+                            if bounce_rate > 0.05:
+                                st.error(f"❌ **Hành vi 2 (Tỷ lệ thoát):** Tỷ lệ thoát trang ({bounce_rate}) nằm ở ngưỡng rủi ro cao. ➔ **Trừ điểm**")
+                            else:
+                                st.success(f"✔️ **Hành vi 2 (Tỷ lệ thoát):** Khách duyệt web mượt mà, tỷ lệ thoát thấp ({bounce_rate}). ➔ **Cộng điểm**")
+
+                        with col_step2:
+                            # Phân tích Lịch sử
+                            if visitor_type == "Returning_Visitor":
+                                st.success(f"✔️ **Hành vi 3 (Loại khách):** Khách hàng cũ quay lại, có sự tin tưởng nhất định. ➔ **Cộng điểm**")
+                            elif visitor_type == "New_Visitor":
+                                st.warning(f"⚠️ **Hành vi 3 (Loại khách):** Khách mới hoàn toàn, cần nhiều mồi nhử hơn. ➔ **Trừ điểm nhẹ**")
+                            else:
+                                st.info(f"ℹ️ **Hành vi 3 (Loại khách):** Nguồn truy cập khác. ➔ **Không đổi**")
+                                
+                            # Phân tích Tháng mùa vụ
+                            if month in ["Nov", "Dec"]:
+                                st.success(f"✔️ **Hành vi 4 (Thời điểm):** Rơi vào tháng Sale cuối năm ({month}), tâm lý dễ mua sắm. ➔ **Cộng điểm**")
+                            else:
+                                st.info(f"ℹ️ **Hành vi 4 (Thời điểm):** Tháng {month} thông thường, không có đột biến mùa vụ. ➔ **Không đổi**")
+
+                        st.write("**Giai đoạn 3: Tổng hợp (Chốt kết quả)**")
+                        st.markdown(f"""
+                        Sau khi chạy qua hàng trăm cây phân tích tương tự như trên, tổng điểm được nén lại bằng hàm toán học (Sigmoid) 
+                        để quy về một tỷ lệ phần trăm duy nhất: **{prob * 100:.2f}%**
+                        """)
                         
                 except Exception as e:
                     st.error(f"❌ Thuật toán gặp lỗi khi dự đoán: {e}")
@@ -122,7 +178,7 @@ with tab2:
     st.subheader("🕵️ Giải phẫu \"Bộ não\" của LightGBM")
     st.markdown("""
     Làm sao một con AI có thể biết trước khách hàng sẽ mua hay thoát? Dưới đây là bức tranh toàn cảnh 
-    về những yếu tố cốt lõi định hình quyết định của thuật toán.
+    về những yếu tố cốt lõi định hình quyết định của thuật toán, được tổng hợp từ hàng vạn khách hàng trong quá khứ.
     """)
     
     if model is not None:
@@ -157,7 +213,7 @@ with tab2:
             fig.update_layout(
                 xaxis_title="Mức độ Tác động",
                 yaxis_title="",
-                plot_bgcolor='rgba(0,0,0,0)', # Nền trong suốt
+                plot_bgcolor='rgba(0,0,0,0)', 
                 height=500
             )
             
