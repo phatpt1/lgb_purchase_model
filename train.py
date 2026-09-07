@@ -1,9 +1,10 @@
 import streamlit as st
 import pandas as pd
 import joblib
+import plotly.express as px
 
 # ==========================================
-# 1. CẤU HÌNH TRANG WEB
+# 1. CẤU HÌNH TRANG WEB CHÍNH
 # ==========================================
 st.set_page_config(
     page_title="AI Dự đoán Mua Hàng | LightGBM",
@@ -21,8 +22,10 @@ def load_model():
         return model
     except Exception as e:
         st.error(f"❌ LỖI NGHIÊM TRỌNG: Không thể nạp file mô hình. Chi tiết: {e}")
+        st.info("💡 Mẹo: Hãy kiểm tra xem file 'lgb_purchase_model.joblib' có nằm cùng thư mục với file code này không.")
         return None
 
+# Gọi hàm load model khi mở trang
 model = load_model()
 
 # ==========================================
@@ -31,7 +34,7 @@ model = load_model()
 st.title("🛒 Trợ lý AI Phân tích Hành vi Khách hàng")
 st.markdown("---")
 
-tab1, tab2 = st.tabs(["🎯 Công cụ Dự đoán", "🧠 Phân tích Thuật toán LightGBM"])
+tab1, tab2 = st.tabs(["🎯 Công cụ Dự đoán", "🧠 Giải phẫu Thuật toán LightGBM"])
 
 # ---------------------------------------------------------
 # TAB 1: CÔNG CỤ DỰ ĐOÁN (UI CHO NGƯỜI DÙNG)
@@ -61,7 +64,7 @@ with tab1:
         
         if st.button("🚀 Bấm để AI Chấm Điểm", use_container_width=True):
             if model is None:
-                st.warning("Không có mô hình AI để chạy.")
+                st.warning("Không có mô hình AI để chạy. Vui lòng khắc phục lỗi nạp file ở trên.")
             else:
                 try:
                     # 1. Đóng gói ĐỦ 17 CỘT theo chuẩn bộ dữ liệu Kaggle
@@ -113,35 +116,75 @@ with tab1:
                     st.error(f"❌ Thuật toán gặp lỗi khi dự đoán: {e}")
 
 # ---------------------------------------------------------
-# TAB 2: MINH HỌA THUẬT TOÁN (TÍNH NĂNG MỚI)
+# TAB 2: MINH HỌA THUẬT TOÁN (SỬ DỤNG PLOTLY)
 # ---------------------------------------------------------
 with tab2:
-    st.subheader("🕵️ Trực quan hóa Cây quyết định của LightGBM")
+    st.subheader("🕵️ Giải phẫu \"Bộ não\" của LightGBM")
     st.markdown("""
-    Thuật toán **Light Gradient Boosting Machine (LightGBM)** đưa ra quyết định không phải dựa trên cảm tính, 
-    mà dựa trên việc học hỏi từ hàng vạn khách hàng trong quá khứ. Dưới đây là những yếu tố mà mô hình cho là quan trọng nhất khi đánh giá một khách hàng.
+    Làm sao một con AI có thể biết trước khách hàng sẽ mua hay thoát? Dưới đây là bức tranh toàn cảnh 
+    về những yếu tố cốt lõi định hình quyết định của thuật toán.
     """)
     
     if model is not None:
         try:
-            # Trích xuất tầm quan trọng của các đặc trưng (Feature Importance)
+            # 1. Trích xuất Feature Importance và SẮP XẾP CHUẨN
             importance_values = model.feature_importances_
             feature_names = model.feature_name_
             
-            # Tạo DataFrame và sắp xếp
             df_importance = pd.DataFrame({
-                'Mức độ đóng góp': importance_values
-            }, index=feature_names)
-            df_importance = df_importance.sort_values(by='Mức độ đóng góp', ascending=False)
+                'Feature': feature_names,
+                'Importance': importance_values
+            })
             
-            # Vẽ biểu đồ thanh ngang
-            st.bar_chart(df_importance)
+            # Chỉ lấy Top 10 yếu tố mạnh nhất và sắp xếp giảm dần để vẽ đẹp hơn
+            df_top10 = df_importance.sort_values(by='Importance', ascending=True).tail(10)
             
-            st.info("""
-            **💡 Diễn giải biểu đồ:** 
-            - Các cột càng cao thể hiện yếu tố đó càng chi phối mạnh mẽ đến quyết định mua hàng của khách.
-            - Nếu **PageValues** (Giá trị trang) hoặc **ProductRelated_Duration** (Thời gian xem sản phẩm) nằm trên top, điều đó chứng tỏ việc giữ chân khách hàng đọc kỹ thông tin sản phẩm mang lại tỷ lệ chuyển đổi cao nhất.
+            # 2. Vẽ biểu đồ tương tác bằng Plotly
+            st.markdown("#### 🏆 Top 10 Cột trụ chốt sale (Tính năng Quan trọng nhất)")
+            fig = px.bar(
+                df_top10, 
+                x='Importance', 
+                y='Feature', 
+                orientation='h',
+                text='Importance',
+                color='Importance',
+                color_continuous_scale='Blues',
+                labels={'Importance': 'Mức độ Tác động (Điểm)', 'Feature': 'Hành vi Khách hàng'}
+            )
+            
+            # Tối ưu giao diện biểu đồ
+            fig.update_traces(textposition='outside')
+            fig.update_layout(
+                xaxis_title="Mức độ Tác động",
+                yaxis_title="",
+                plot_bgcolor='rgba(0,0,0,0)', # Nền trong suốt
+                height=500
+            )
+            
+            # Hiển thị biểu đồ lên Streamlit
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # 3. Phân tích Insight Kinh doanh Tự động
+            st.markdown("#### 💡 Đọc vị Insight Kinh doanh từ Biểu đồ")
+            
+            top_1_feature = df_top10.iloc[-1]['Feature']
+            top_2_feature = df_top10.iloc[-2]['Feature']
+            
+            st.info(f"""
+            **1. Yếu tố chí mạng:** Thuật toán phát hiện ra rằng **{top_1_feature}** là yếu tố số 1 quyết định sinh tử của một đơn hàng. 
+            Mọi chiến dịch tối ưu hóa Website (UX/UI) cần phải dồn tài nguyên để cải thiện chỉ số này đầu tiên.
             """)
+            
+            st.success(f"""
+            **2. Yếu tố giữ chân:** Đứng ở vị trí thứ hai là **{top_2_feature}**. Việc theo dõi chặt chẽ hành vi này 
+            sẽ giúp đội ngũ Marketing xác định chính xác thời điểm nào nên bung mã khuyến mãi để khách không thoát trang.
+            """)
+            
+            st.warning("""
+            **3. Nhóm yếu tố vô hình:** Ngược lại, các yếu tố như *Trình duyệt (Browser)* hay *Hệ điều hành (OperatingSystems)* 
+            lại có điểm số rất thấp. Điều này cho thấy khách hàng mua sắm vì nhu cầu và trải nghiệm trên trang, chứ không bị rào cản bởi công nghệ họ đang xài.
+            """)
+            
         except Exception as e:
             st.error(f"Không thể vẽ biểu đồ Feature Importance: {e}")
     else:
