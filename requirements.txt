@@ -1,5 +1,5 @@
 streamlit
 pandas
 lightgbm
-scikit-learn
 joblib
+scikit-learn
